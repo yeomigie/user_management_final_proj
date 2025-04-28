@@ -27,15 +27,20 @@ app.add_middleware(
     allow_methods=["*"],  # Allowed HTTP methods
     allow_headers=["*"],  # Allowed HTTP headers
 )
+@app.get("/")
+async def root():
+    return {"message": "Welcome to User Management API"}
 
 @app.on_event("startup")
 async def startup_event():
     settings = get_settings()
+    print(f"*** DATABASE_URL being used: {settings.database_url} ***")
     Database.initialize(settings.database_url, settings.debug)
 
 @app.exception_handler(Exception)
 async def exception_handler(request, exc):
     return JSONResponse(status_code=500, content={"message": "An unexpected error occurred."})
+    
 
 app.include_router(user_routes.router)
 

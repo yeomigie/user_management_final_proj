@@ -34,6 +34,11 @@ services:
     build: .
     volumes:
       - ./:/myapp/
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: myappdb
+      DATABASE_URL: postgresql+asyncpg://user:password@postgres:5432/myappdb
     depends_on:
       postgres:
         condition: service_healthy
