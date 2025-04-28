@@ -15,6 +15,7 @@ WORKDIR /myapp
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
+	perl-base=5.36.0-7+deb12u2 \
     && apt-get install -y --allow-downgrades libc-bin=2.36-9+deb12u7 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
