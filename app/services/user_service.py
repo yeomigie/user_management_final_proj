@@ -177,7 +177,7 @@ class UserService:
                 user.role == UserRole.ADMIN
             elif user.role == "MANAGER":
                 user.role == UserRole.MANAGER
-            elif user.role == UserROle.ANONYMOUS:
+            elif user.role == UserRole.ANONYMOUS:
                 user.role == UserRole.AUTHENTICATED
             else:
                 user.role == UserRole.AUTHENTICATED

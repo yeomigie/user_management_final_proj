@@ -22,7 +22,7 @@ from uuid import uuid4
 # Third-party imports
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, scoped_session
 from faker import Faker
@@ -57,12 +57,14 @@ def email_service():
 # this is what creates the http client for your api tests
 @pytest.fixture(scope="function")
 async def async_client(db_session):
-    async with AsyncClient(app=app, base_url="http://testserver") as client:
+    # Use ASGITransport to run our FastAPI app in httpx.AsyncClient
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # override get_db to use our test session
         app.dependency_overrides[get_db] = lambda: db_session
-        try:
-            yield client
-        finally:
-            app.dependency_overrides.clear()
+        yield client
+    # clear after each test
+    app.dependency_overrides.clear()
 
 @pytest.fixture(scope="session", autouse=True)
 def initialize_database():
