@@ -63,7 +63,7 @@ class UserService:
                 new_nickname = validated_data['nickname']
             else:
                 new_nickname = generate_nickname()
-                while await cls.get_by_nickname(session,new_nickname)
+                while await cls.get_by_nickname(session,new_nickname):
                     new_nickname = generate_nickname()
             new_user.nickname = new_nickname
             logger.info(f"User Role: {new_user.role}")
