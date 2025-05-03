@@ -62,7 +62,6 @@ To run automated tests locally:
 ```bash
 docker-compose exec web pytest
 ```
-
 ## CI/CD and Deployment
 
 * GitHub Actions workflow ensures automatic testing, Docker image building, and vulnerability scanning.
