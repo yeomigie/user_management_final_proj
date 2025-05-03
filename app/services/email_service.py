@@ -37,7 +37,7 @@ class EmailService:
         }, 'email_verification')
     
     async def send_pro_promotion_email(self, user_email: str):
-        subject = ""Congratulations on Your Professional Upgrade!"
+        subject = "Congratulations on Your Professional Upgrade!"
         body = (
             "Hello,\n\n"
             "Great news—your account has just been upgraded to **Professional Membership**! "
