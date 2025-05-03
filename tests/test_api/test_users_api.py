@@ -264,3 +264,42 @@ from builtins import str
          headers={"Authorization": f"Bearer {user_token}"}
      )
      assert response.status_code == 403  # Forbidden, as expected for regular user
+     
+@pytest.mark.asyncio
+async def test_get_user_list_as_admin(async_client, admin_token):
+    # Admin should see the list of all users
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resp = await async_client.get("/users/", headers=headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+@pytest.mark.asyncio
+async def test_get_user_list_forbidden_for_non_admin(async_client, auth_token):
+    # Regular user cannot list all users
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    resp = await async_client.get("/users/", headers=headers)
+    assert resp.status_code == 403
+
+@pytest.mark.asyncio
+async def test_create_user_success(async_client, admin_token):
+    # Admin can create a valid new user
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    user_data = {
+        "nickname": "NewUser",
+        "email": "newuser@example.com",
+        "password": "ValidPass123!",
+        "role": "AUTHENTICATED"
+    }
+    resp = await async_client.post("/users/", json=user_data, headers=headers)
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["email"] == user_data["email"]
+    assert body["nickname"] == user_data["nickname"]
+
+@pytest.mark.asyncio
+async def test_delete_user_not_allowed(async_client, admin_user, admin_token):
+    # Deleting a user is not implemented or forbidden
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resp = await async_client.delete(f"/users/{admin_user.id}", headers=headers)
+    assert resp.status_code in (403, 404)
+     
