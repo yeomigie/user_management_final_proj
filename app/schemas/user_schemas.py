@@ -4,7 +4,6 @@ from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 import uuid
-from urllib.parse import urlparse
 import re
 from app.models.user_model import UserRole
 from app.utils.nickname_gen import generate_nickname
@@ -17,16 +16,6 @@ def validate_url(url: Optional[str]) -> Optional[str]:
     if not re.match(url_regex, url):
         raise ValueError('Invalid URL format')
     return url
-    
-def validate_profile_picture_url(cls, url):
-    if url is None:
-        return url  # If the URL is optional, allow None values
-    parsed_url = urlparse(url)
-    if not parsed_url.scheme or parsed_url.scheme not in {"http", "https"}:
-        raise ValueError("URL must start with http:// or https://")
-    if not re.search(r"\.(jpg|jpeg|png)$", parsed_url.path):
-        raise ValueError("Should have a valid image file (e.g., .jpg, .jpeg, .png)")
-    return url
 
 class UserBase(BaseModel):
     email: EmailStr = Field(..., example="john.doe@example.com")
@@ -37,18 +26,30 @@ class UserBase(BaseModel):
     profile_picture_url: Optional[str] = Field(None, example="https://example.com/profiles/john.jpg")
     linkedin_profile_url: Optional[str] =Field(None, example="https://linkedin.com/in/johndoe")
     github_profile_url: Optional[str] = Field(None, example="https://github.com/johndoe")
+    is_professional: Optional[bool] = Field(default=False, example=True)
     role: UserRole
 
-    _validate_urls = validator('linkedin_profile_url', 'github_profile_url', pre=True, allow_reuse=True)(validate_url)
-    _validate_profile_picture_url = validator('profile_picture_url',pre=True, allow_reuse=True)(validate_profile_picture_url)
-
+    _validate_urls = validator('profile_picture_url', 'linkedin_profile_url', 'github_profile_url', pre=True, allow_reuse=True)(validate_url)
  
     class Config:
         from_attributes = True
 
 class UserCreate(UserBase):
     email: EmailStr = Field(..., example="john.doe@example.com")
-    password: str = Field(..., example="Secure*1234")
+    password: str = Field(..., min_length=8, example="Secure*1234")
+    @validator('password')
+    def check_password_strength(cls, value):
+        if len(value) < 8:
+            raise ValueError("The password should have a minimum of 8 characters.")
+        if not re.search(r"[A-Z]", value):
+            raise ValueError("The password should include at least one uppercase character.")
+        if not re.search(r"[a-z]", value):
+            raise ValueError("The password should include at least one lowercase character.")
+        if not re.search(r"\d", value):
+            raise ValueError("The password should contain at least one numeric digit.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
+            raise ValueError("The password should contain at least one special symbol.")
+        return value
 
 class UserUpdate(UserBase):
     email: Optional[EmailStr] = Field(None, example="john.doe@example.com")
