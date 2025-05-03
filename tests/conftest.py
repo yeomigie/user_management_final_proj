@@ -1,18 +1,17 @@
 """
-File: tests/conftest.py
 
 Overview:
 This file configures pytest fixtures for database setup/teardown, HTTP client,
-user states, authentication tokens, and email stubbing.
+user states, authentication tokens, and stubs out SMTP for isolated testing.
 """
 
 # Standard library imports
 from datetime import timedelta
-from unittest.mock import AsyncMock
 from uuid import uuid4
 
 # Third-party imports
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -25,45 +24,53 @@ from app.models.user_model import User, UserRole
 from app.dependencies import get_db, get_settings
 from app.utils.security import hash_password
 from app.utils.template_manager import TemplateManager
+from app.utils.smtp_connection import SMTPConnection
 from app.services.email_service import EmailService
 from app.services.jwt_service import create_access_token
 
+# Faker for generating dummy data
 fake = Faker()
+# Load settings
 settings = get_settings()
 
 # Configure test database URL for asyncpg
 TEST_DATABASE_URL = settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
+# Async engine and session factory
 engine = create_async_engine(TEST_DATABASE_URL, echo=settings.debug)
-AsyncTestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+AsyncTestingSessionLocal = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 AsyncSessionScoped = scoped_session(AsyncTestingSessionLocal)
 
 # -------------------------------------------------------------------
-# Prevent real SMTP connections in all tests
+# Stub out real SMTP connections globally
 # -------------------------------------------------------------------
 @pytest.fixture(autouse=True, scope="session")
-def _stub_smtp(monkeypatch):
+def _stub_smtp_session():
     """
-    Stub out SMTPConnection.send_email so no real SMTP calls occur.
+    Stub SMTPConnection.send_email for the entire session
+    so no real SMTP calls occur during tests.
     """
-    def _noop_send(self, *args, **kwargs):
-        return None
-
-    monkeypatch.setattr(
-        "app.utils.smtp_connection.SMTPConnection.send_email",
-        _noop_send,
+    mp = MonkeyPatch()
+    mp.setattr(
+        SMTPConnection,
+        "send_email",
+        lambda self, *args, **kwargs: None,
         raising=False
     )
+    yield
+    mp.undo()
 
 # -------------------------------------------------------------------
-# EmailService fixture with stubbed smtp_client.send_email
+# EmailService fixture with stubbed smtp_client
 # -------------------------------------------------------------------
 @pytest.fixture
 def email_service(monkeypatch):
     """
-    Provides an EmailService whose smtp_client.send_email is a no-op.
+    Provide an EmailService instance whose underlying smtp_client.send_email is a no-op.
     """
     svc = EmailService(template_manager=TemplateManager())
-    # Stub the low-level send_email
+    # Stub low-level send_email on smtp_client
     monkeypatch.setattr(svc.smtp_client, "send_email", lambda *a, **k: None)
     return svc
 
@@ -92,9 +99,11 @@ def initialize_database():
 
 @pytest.fixture(scope="function", autouse=True)
 async def setup_database():
+    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    # Drop all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
@@ -213,7 +222,7 @@ async def admin_user(db_session: AsyncSession):
         first_name="John",
         last_name="Doe",
         email="admin@example.com",
-        hashed_password="securepassword",
+        hashed_password=hash_password("AdminPass!234"),
         role=UserRole.ADMIN,
         is_locked=False,
     )
@@ -228,7 +237,7 @@ async def manager_user(db_session: AsyncSession):
         first_name="John",
         last_name="Doe",
         email="manager_user@example.com",
-        hashed_password="securepassword",
+        hashed_password=hash_password("ManagerPass!234"),
         role=UserRole.MANAGER,
         is_locked=False,
     )
