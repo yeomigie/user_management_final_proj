@@ -48,4 +48,4 @@ class EmailService:
             "Cheers,\n"
             "The Product Team"
         )
-         self.smtp_client.send_email(user_email, subject, body)
+        self.smtp_client.send_email(user_email, subject, body)
